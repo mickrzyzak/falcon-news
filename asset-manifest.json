@@ -1,0 +1,16 @@
+{
+  "files": {
+    "main.css": "/falcon-news/static/css/main.383ee4cc.css",
+    "main.js": "/falcon-news/static/js/main.15afd803.js",
+    "static/js/787.c588567f.chunk.js": "/falcon-news/static/js/787.c588567f.chunk.js",
+    "static/media/wingsWhite.png": "/falcon-news/static/media/wingsWhite.3c43cc8faa18c60254a2.png",
+    "index.html": "/falcon-news/index.html",
+    "main.383ee4cc.css.map": "/falcon-news/static/css/main.383ee4cc.css.map",
+    "main.15afd803.js.map": "/falcon-news/static/js/main.15afd803.js.map",
+    "787.c588567f.chunk.js.map": "/falcon-news/static/js/787.c588567f.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.383ee4cc.css",
+    "static/js/main.15afd803.js"
+  ]
+}
