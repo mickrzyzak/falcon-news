@@ -22,19 +22,25 @@ import {
 import Styles from '../styles/News';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import UpdateOutlinedIcon from '@mui/icons-material/UpdateOutlined';
+import { apiTimesWireUrl, apiArticleSearchUrl } from './App';
 import { useAppSelector, useAppDispatch } from '../hooks';
-import { setSection, setActive, setNews } from '../features/appSlice';
-
-const apiUrl = 'https://api.nytimes.com/svc/news/v3/content/nyt/{SECTION}.json?api-key=vKnLNohXyExWqbxOdleYaqqR5UkSjGLv&limit=90';
+import {
+  setActive,
+  setNews,
+  setNewsDisplayed,
+  setSearch,
+  setSearchResults,
+  setSection
+} from '../features/appSlice';
 
 type LocalNews = Array<{
-  multimedia?: Array<any>;
-  subsection: string;
+  multimedia?: Array<{url: string, caption: string}>;
   section: string;
   title: string;
   abstract: string;
   byline: string;
   published_date: string;
+  url: string;
 }>;
 
 const dialogLinkProps: LinkProps = {
@@ -42,6 +48,8 @@ const dialogLinkProps: LinkProps = {
   rel: 'noreferrer',
   underline: 'none'
 };
+
+const newsOnPage = window.innerWidth >= 1200 ? 9 : 8;
 
 const NotRespondDialog = (props: {open: boolean}) => {
   return (
@@ -85,27 +93,27 @@ const TooManyRequestsDialog = (props: {open: boolean, setOpen: Function}) => {
 
 const News = () => {
 
-  const storeSection = useAppSelector(state => state.app.section);
+  const storeSearch = useAppSelector(state => state.app.search);
   const storeNews = useAppSelector(state => state.app.news);
+  const storeNewsDisplayed = useAppSelector(state => state.app.newsDisplayed);
+  const storeSection = useAppSelector(state => state.app.section);
   const dispatch = useAppDispatch();
 
-  const newsOnPage = window.innerWidth >= 1200 ? 9 : 8;
-
   const [displayedNews, setDisplayedNews] = useState<LocalNews>([]);
-  const [displayedNewsCount, setDisplayedNewsCount] = useState<number>(newsOnPage);
+  const [searchResultsNotFound, setSearchResultsNotFound] = useState<boolean>(false);
   const [dialogNotRespond, setDialogNotRespond] = useState<boolean>(false);
   const [dialogTooManyRequests, setDialogTooManyRequests] = useState<boolean>(false);
 
-  // Get news from the active section limited by "displayedNewsCount"
+  // Get news from the active section limited by "storeNewsDisplayed"
   const getNewsToDisplay = useCallback(() => {
     let sectionNews = storeNews.find(section => section.section === storeSection);
-    return sectionNews !== undefined ? sectionNews.news.slice(0, displayedNewsCount) : [];
-  }, [storeSection, storeNews, displayedNewsCount]);
+    return sectionNews !== undefined ? sectionNews.news.slice(0, storeNewsDisplayed) : [];
+  }, [storeSection, storeNews, storeNewsDisplayed]);
 
   // Get news from NYT's Times Wire API or throw an error code
-  const getNewsFromApi = useCallback(async () => {
+  const getNewsFromTimesWireApi = useCallback(async () => {
     try {
-      return await fetch(apiUrl.replace('{SECTION}', storeSection.toLowerCase()))
+      return await fetch(apiTimesWireUrl.replace('{SECTION}', storeSection.toLowerCase()))
       .then(res => res.status === 200 ? res.json() : res.status)
       .then(res => typeof res === 'object' ? res.results : res);
     } catch(error) {
@@ -113,8 +121,19 @@ const News = () => {
     }
   }, [storeSection]);
 
+  // Get news from NYT's Article Search API or throw an error code
+  const getNewsFromArticleSearchApi = useCallback(async () => {
+    try {
+      return await fetch(apiArticleSearchUrl.replace('{QUERY}', storeSearch))
+      .then(res => res.status === 200 ? res.json() : res.status)
+      .then(res => typeof res === 'object' ? res.response.docs : res);
+    } catch(error) {
+      return 404;
+    }
+  }, [storeSearch]);
+
   // Convert date format to a more friendly form
-  // Outputs: TODAY, YESTERDAY, X DAYS AGO
+  // Outputs: TODAY, YESTERDAY, X DAYS AGO, YYYY/MM/DD
   const daysAgoFromNow = (date: string) => {
     let dateNow = new Date();
     let dateAgo = new Date(date);
@@ -124,8 +143,11 @@ const News = () => {
       return 'TODAY';
     } else if(dateDiffrence === 1) {
       return 'YESTERDAY';
-    } else {
+    } else if(dateDiffrence < 100) {
       return dateDiffrence+' DAYS AGO';
+    } else {
+      let format = date.substring(0, 10).split('-');
+      return format[2]+'/'+format[1]+'/'+format[0];
     }
   }
 
@@ -149,7 +171,7 @@ const News = () => {
                     <CardMedia
                       component="img"
                       image={news.multimedia[2].url}
-                      alt={news.subsection}
+                      alt={news.multimedia[2].caption}
                       sx={Styles.NewsCardMedia}
                     />
                   : null}
@@ -167,12 +189,16 @@ const News = () => {
                     <Typography
                       variant="body2"
                       color="text.secondary"
-                      sx={{mb: news.byline.length > 25 || daysAgo.length >= 10 ? '88px' : '48px'}}
+                      sx={{
+                        mb: (news.byline !== null && news.byline.length > 25)
+                        || daysAgo.length >= 10 ? '88px' : '48px'
+                      }}
                     >
                       {news.abstract}
                     </Typography>
                     <Box sx={Styles.NewsBox}>
-                      {news.byline.length && news.byline.length <= 50 ?
+                      {news.byline !== null && news.byline.length <= 50
+                      ?
                         <Chip
                           label={news.byline.substring(3)}
                           icon={<AccountCircleOutlinedIcon />}
@@ -202,7 +228,7 @@ const News = () => {
   const NewsSkeletons = () => {
     return (
       <>
-        {[...Array(newsOnPage)].map((element, key) => {
+        {!searchResultsNotFound && [...Array(newsOnPage)].map((element, key) => {
           return (
             <Grid item xs={12} md={6} lg={4} key={key}>
               <Card sx={Styles.NewsCard}>
@@ -229,11 +255,11 @@ const News = () => {
 
     let activeSectionId = storeNews.findIndex(el => el.section === storeSection);
 
-    if(activeSectionId !== -1 && displayedNewsCount < storeNews[activeSectionId].news.length) {
+    if(activeSectionId !== -1 && storeNewsDisplayed < storeNews[activeSectionId].news.length) {
       return (
         <>
           <Button
-            onClick={() => setDisplayedNewsCount(displayedNewsCount + newsOnPage)}
+            onClick={() => dispatch(setNewsDisplayed(storeNewsDisplayed + newsOnPage))}
             variant="outlined"
             size="large"
             sx={Styles.NewsReadMore}
@@ -242,26 +268,36 @@ const News = () => {
           </Button>
         </>
       );
-    } else {
-      return null;
-    }
+    } else return null;
+  }
+
+  const SearchLabel = () => {
+    return (
+      <Typography variant="h4" sx={{
+        ...Styles.NewsSerachLabel,
+        display: { xs: searchResultsNotFound ? 'block' : 'none', lg: 'block' }
+      }}>
+        {searchResultsNotFound ? 'No search results found' : 'Search results'}
+      </Typography>
+    );
   }
 
   useEffect(() => {
-    // If the active section is empty, set "All" to active
+    // If the active section is empty, set "All" to active and return
     if(storeSection.length === 0) {
       dispatch(setSection('All'));
       return;
     }
 
-    // Scroll to the top of the page and reset the displayed news count
+    // Scroll to the top of the page
+    // and reset the "searchResultsNotFound"
     window.scrollTo(0, 0);
-    setDisplayedNewsCount(newsOnPage);
+    setSearchResultsNotFound(false);
 
     // If the section news have not yet been loaded, get them from the API
     if(storeNews.findIndex(el => el.section === storeSection) === -1) {
       setDisplayedNews([]);
-      getNewsFromApi().then(news => {
+      getNewsFromTimesWireApi().then(news => {
         if(Array.isArray(news)) {
           dispatch(setNews({section: storeSection, news}));
         } else {
@@ -274,9 +310,51 @@ const News = () => {
         }
       });
     }
-  }, [dispatch, storeSection, storeNews, getNewsFromApi, newsOnPage]);
+  }, [dispatch, storeSection, storeNews, getNewsFromTimesWireApi]);
 
   useEffect(() => {
+    // Return if the search value is empty
+    if(storeSearch.length === 0) return;
+
+    // Get the searched news from the API
+    getNewsFromArticleSearchApi().then(docs => {
+      if(Array.isArray(docs) && docs.length) {
+        let news: LocalNews = [];
+        // Convert Search API response to Times Wire API format
+        docs.forEach(doc => {
+          if(doc.multimedia.length >= 3) {
+            doc.multimedia[2].url = 'https://static01.nyt.com/'+doc.multimedia[2].url;
+          }
+          news.push({
+            multimedia: doc.multimedia,
+            section: 'Search results',
+            title: doc.headline.main,
+            abstract: doc.abstract,
+            byline: doc.byline.original,
+            published_date: doc.pub_date,
+            url: doc.web_url
+          });
+        });
+        setSearchResultsNotFound(false);
+        dispatch(setSearch(''));
+        dispatch(setSearchResults(news));
+        dispatch(setNewsDisplayed(newsOnPage));
+      } else if(Array.isArray(docs) && docs.length === 0) {
+        // If the search result is empty, set "searchResultsNotFound"
+        setSearchResultsNotFound(true);
+      } else {
+        // Show error dialog on failure
+        if(docs === 429) {
+          setDialogTooManyRequests(true);
+        } else {
+          setDialogNotRespond(true);
+        }
+      }
+    });
+  }, [dispatch, storeSearch, getNewsFromArticleSearchApi]);
+
+  useEffect(() => {
+    // Update displayed news when stored data changes
     setDisplayedNews(getNewsToDisplay());
   }, [getNewsToDisplay]);
 
@@ -284,6 +362,7 @@ const News = () => {
     <Container maxWidth="xl" sx={Styles.NewsContainer}>
       <NotRespondDialog open={dialogNotRespond} />
       <TooManyRequestsDialog open={dialogTooManyRequests} setOpen={setDialogTooManyRequests} />
+      {storeSection === 'Search' ? <SearchLabel /> : null}
       <Grid container spacing={{xs: 2, sm: 4}}>
         {displayedNews.length ? <NewsElements /> : <NewsSkeletons />}
       </Grid>
@@ -293,3 +372,4 @@ const News = () => {
 }
 
 export default News;
+export { newsOnPage };

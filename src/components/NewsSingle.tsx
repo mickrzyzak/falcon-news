@@ -17,14 +17,15 @@ import {
 } from '@mui/material';
 import Styles from '../styles/NewsSingle';
 import { LoremIpsum } from 'lorem-ipsum';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { useAppSelector, useAppDispatch } from '../hooks';
 import { setActive } from '../features/appSlice';
 
 type ActiveNews = {
+  multimedia?: Array<{url: string, caption: string}>;
   section: string;
   title: string;
   abstract: string;
-  multimedia?: Array<{url: string, caption: string}>;
   byline: string;
   published_date: string;
   url: string;
@@ -32,9 +33,9 @@ type ActiveNews = {
 
 const NewsSingle = () => {
 
-  const storeSection = useAppSelector(state => state.app.section);
   const storeActive = useAppSelector(state => state.app.active);
   const storeNews = useAppSelector(state => state.app.news);
+  const storeSection = useAppSelector(state => state.app.section);
   const dispatch = useAppDispatch();
 
   const [loremIpsum, setLoremIpsum] = useState<Array<JSX.Element> | null>(null);
@@ -66,7 +67,8 @@ const NewsSingle = () => {
             {activeNews.title}
           </Typography>
           <Stack sx={Styles.NewsStack}>
-            {activeNews.byline.length && activeNews.byline.length <= 50 ?
+            {activeNews.byline !== null && activeNews.byline.length <= 50
+            ?
               <Typography variant="subtitle2" sx={Styles.NewsStackItem}>
                 Author: <span style={Styles.ColorPrimary}>{activeNews.byline.substring(3)}</span>
               </Typography>
@@ -124,7 +126,8 @@ const NewsSingle = () => {
     let activeSectionId = storeNews.findIndex(el => el.section === storeSection);
 
     // Push the random article ids from the active section to "randomIds"
-    while(randomIds.length < (activeNews.multimedia !== null || window.innerWidth < 900 ? 3 : 2)) {
+    let mobileView = useMediaQuery('(max-width:899px)');
+    while(randomIds.length < (activeNews.multimedia !== null || mobileView ? 3 : 2)) {
       let randomId = Math.floor(Math.random() * storeNews[activeSectionId].news.length);
       if(!randomIds.includes(randomId) && randomId !== storeActive) {
         randomIds.push(randomId);
@@ -146,12 +149,12 @@ const NewsSingle = () => {
               && randomNews.multimedia !== undefined
               && randomNews.multimedia[2] !== undefined
             ?
-              <CardMedia
-                component="img"
-                sx={Styles.SeeAlsoCardMedia}
-                image={randomNews.multimedia[2].url}
-                alt={randomNews.subsection}
-              />
+            <CardMedia
+              component="img"
+              sx={Styles.SeeAlsoCardMedia}
+              image={randomNews.multimedia[2].url}
+              alt={randomNews.subsection}
+            />
             : null}
             <CardContent>
               <Typography
@@ -179,7 +182,7 @@ const NewsSingle = () => {
   }
 
   useEffect(() => {
-    // If the active news is empty, return
+    // Return if the active news is empty
     if(storeActive === null) {
       return;
     }

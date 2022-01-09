@@ -33,6 +33,7 @@ const Styles: any = {
   },
   NewsBox: {
     position: 'absolute',
+    width: 'calc(100% - 32px)',
     bottom: '24px'
   },
   NewsChipByLine: {
@@ -54,6 +55,14 @@ const Styles: any = {
       xs: 2,
       sm: 4
     }
+  },
+  NewsSerachLabel: {
+    fontSize: {
+      xs: '1.5rem',
+      md: '2.125rem'
+    },
+    lineHeight: 1,
+    mb: 3
   },
   DialogTitle: {
     lineHeight: 1.25

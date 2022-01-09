@@ -2,7 +2,7 @@
 
 ### What is it?
 
-**Falcon News** is a responsive web application with **news from around the world** grouped by category. The news content comes from the [**New York Times API**](https://developer.nytimes.com/). The API has restrictions that may temporarily prevent access to content.
+**Falcon News** is a responsive web application with **news from around the world**. News can be displayed by section or using the search engine. The news content comes from the [**New York Times API**](https://developer.nytimes.com/) (The API has restrictions that may temporarily prevent access to content).
 
 **The online demo is available [here](https://mickrzyzak.github.io/falcon-news/).**
 

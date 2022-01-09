@@ -1,33 +1,54 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { newsOnPage } from '../components/News';
 
 interface InitialState {
-  section: string;
   active: number | null;
   news: Array<any>;
+  newsDisplayed: number;
+  search: string;
+  section: string;
 }
 
 const initialState: InitialState = {
-  section: 'All',
   active: null,
-  news: []
+  news: [{section: 'Search', news: []}],
+  newsDisplayed: newsOnPage,
+  search: '',
+  section: 'All'
 };
 
 export const appSlice = createSlice({
   name: 'app',
   initialState,
   reducers: {
-    setSection: (state, action: PayloadAction<string>) => {
-      state.section = action.payload;
-      state.active = null;
-    },
     setActive: (state, action: PayloadAction<number | null>) => {
       state.active = action.payload;
     },
     setNews: (state, action: PayloadAction<{section: string, news: Array<any>}>) => {
       state.news.push(action.payload);
+    },
+    setNewsDisplayed: (state, action: PayloadAction<number>) => {
+      state.newsDisplayed = action.payload;
+    },
+    setSearch: (state, action: PayloadAction<string>) => {
+      state.search = action.payload;
+    },
+    setSearchResults: (state, action: PayloadAction<object>) => {
+      state.news[0].news = action.payload;
+    },
+    setSection: (state, action: PayloadAction<string>) => {
+      state.section = action.payload;
+      state.active = null;
     }
   }
 });
 
-export const { setSection, setActive, setNews } = appSlice.actions;
+export const {
+  setActive,
+  setNews,
+  setNewsDisplayed,
+  setSearch,
+  setSearchResults,
+  setSection
+} = appSlice.actions;
 export default appSlice.reducer;
